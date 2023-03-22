@@ -1,9 +1,13 @@
 import { PrismaClient } from ".prisma/client"
 import { Router } from "express"
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient()
 
 export const router = Router()
+
+const secret = process.env.JWT_SECRET || 'defaultSecret';
 
 // middleware that is specific to this router
 router.use((req, res, next) => {
@@ -29,13 +33,12 @@ router.get('/posts', async (req, res) => {
 
 router.post('/posts', async (req, res) => {
 
-    const {  content, publishedAt, authorId } = req.body
+    const {  content, authorId } = req.body
 
     try {
         const createdPost = await prisma.post.create({
             data: {
                 content, 
-                publishedAt,
                 authorId
             },
             include: {
@@ -98,22 +101,6 @@ router.get('/users', async (req, res) => {
     }
 })
 
-router.post('/users', async (req, res) => {
-    const { avatarUrl, name, role } = req.body
-
-    try {
-        const createdUser = await prisma.user.create({
-            data: {
-                avatarUrl,
-                name, 
-                role
-            },
-          })
-        res.status(201).json(createdUser)
-    } catch (error) {
-        res.status(500).json({message: error})
-    }
-})
 
 router.put('/users/:id', async (req, res) => {
     const { avatarUrl, name, role } = req.body
@@ -213,6 +200,59 @@ router.delete('/comments/:id', async (req, res) => {
             },
             })
         res.status(204).json()
+    } catch (error) {
+        res.status(500).json({message: error})
+    }
+})
+
+//auth routes
+router.post('/login', async (req, res) => {
+    const {  email, password } = req.body
+
+    try{
+        const user = await prisma.user.findUnique(
+            {
+                where: {email: email}
+            }
+        )
+
+        if(!user){
+            return res.status(404).json({message: "User not found"})
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(password, user.password)
+
+        if(!isPasswordCorrect){
+            return res.status(400).json({message: "Invalid credentials"})
+        }
+
+        jwt.sign({userId: user.id}, secret, {expiresIn: '1h'}, (err, token) => {
+            if(err){
+                console.log(err)
+            }
+            res.status(200).json({auth: true, token})
+        }
+        )
+
+    }catch(error){
+        res.status(500).json({message: error})
+    }
+})
+
+router.post('/signin', async (req, res) => {
+    const { name, email, password } = req.body
+
+    const cryptPassword = await bcrypt.hash(password, 10)
+
+    try {
+        const createdUser = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: cryptPassword
+            },
+          })
+        res.status(201).json(createdUser)
     } catch (error) {
         res.status(500).json({message: error})
     }
