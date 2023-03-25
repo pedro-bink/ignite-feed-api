@@ -12,6 +12,8 @@ model User {
   email     String    @unique
   password  String
   avatarUrl String?
+  bannerUrl String?
+  isAdmin   Boolean   @default(false)
   name      String
   role      String?   @default("USER")
   posts     Post[]
@@ -25,9 +27,9 @@ model Post {
   content     String?
   publishedAt DateTime  @default(now())
   updatedAt   DateTime @updatedAt
-  author      User?     @relation(fields: [authorId], references: [id])
-  authorId    Int?
-  comments    Comment[]
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    Int
+  comments    Comment[] 
 }
 
 model Comment {
@@ -35,8 +37,8 @@ model Comment {
   content     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  author      User?    @relation(fields: [authorId], references: [id])
-  authorId    Int?
-  Post        Post?    @relation(fields: [postId], references: [id])
-  postId      Int?
+  author      User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    Int
+  Post        Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      Int
 }

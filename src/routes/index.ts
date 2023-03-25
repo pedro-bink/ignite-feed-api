@@ -20,10 +20,33 @@ router.get('/posts', async (req, res) => {
         const posts = await prisma.post.findMany({
             include: {
                 author: true,
-                comments: true
-            },
+                comments: {
+                    include: {
+                        author: true
+                        }
+                    }
+                },
+            orderBy: {
+                publishedAt: 'desc'
+            }
         })
-        res.status(200).json(posts)
+        const postsWithoutAuthorPassword = posts.map(post => {
+            const { author: { password, ...authorWithoutPassword }, comments, ...rest } = post;
+
+            const commentsWithoutAuthorPassword = comments.map(comment => {
+              const { author: { password, ...authorWithoutPassword }, ...commentRest } = comment;
+              return {
+                ...commentRest,
+                author: authorWithoutPassword,
+              };
+            });
+            return {
+              ...rest,
+              author: authorWithoutPassword,
+              comments: commentsWithoutAuthorPassword,
+            };
+          });
+        res.status(200).json(postsWithoutAuthorPassword)
         
     } catch (error) {
         console.log(error)
@@ -52,7 +75,6 @@ router.post('/posts', async (req, res) => {
 })
 
 router.put('/posts/:id', async (req, res) => {
-
     const { content, publishedAt, authorId } = req.body
     const { id } = req.params
     const parsedId = parseInt(id);
@@ -84,6 +106,9 @@ router.delete('/posts/:id', async (req, res) => {
             where: {
                 id: parsedId
             },
+            include: {
+                comments: true
+            }
             })
         res.status(204).json()
     } catch (error) {
@@ -101,9 +126,29 @@ router.get('/users', async (req, res) => {
     }
 })
 
+router.get('/users/:id', async (req, res) => {
+
+    const { id } = req.params
+    const parsedId = parseInt(id);
+
+    try {
+        const user = await prisma.user.findUnique(
+            {
+                where: {
+                id: parsedId
+            },
+        }
+        )
+        const { password, ...userResponseDTO } = user || {};
+        res.status(200).json(userResponseDTO)
+    } catch (error) {
+        res.status(500).json({message: error})
+    }
+})
+
 
 router.put('/users/:id', async (req, res) => {
-    const { avatarUrl, name, role } = req.body
+    const { treatedAvatarUrl, treatedBannerUrl, treatedName, treatedRole } = req.body
     const { id } = req.params
     const parsedId = parseInt(id);
 
@@ -113,9 +158,10 @@ router.put('/users/:id', async (req, res) => {
                 id: parsedId
             },
             data: {
-                avatarUrl,
-                name, 
-                role
+                avatarUrl: treatedAvatarUrl,
+                bannerUrl: treatedBannerUrl,
+                name: treatedName, 
+                role: treatedRole,
             },
         })
         res.status(200).json(updatedUser)
@@ -143,7 +189,11 @@ router.delete('/users/:id', async (req, res) => {
 // comments routers
 router.get('/comments', async (req, res) => {
     try {
-        const comments = await prisma.comment.findMany()
+        const comments = await prisma.comment.findMany({
+            include: {
+                author: true
+            }
+        })
         res.status(200).json(comments)
     } catch (error) {
         res.status(500).json({message: error})
@@ -207,7 +257,7 @@ router.delete('/comments/:id', async (req, res) => {
 
 //auth routes
 router.post('/login', async (req, res) => {
-    const {  email, password } = req.body
+    const { email, password } = req.body
 
     try{
         const user = await prisma.user.findUnique(
@@ -230,7 +280,9 @@ router.post('/login', async (req, res) => {
             if(err){
                 console.log(err)
             }
-            res.status(200).json({auth: true, token})
+            const { password, ...userResponseDTO } = user || {};
+
+            res.status(200).json({auth: true, token, userResponseDTO})
         }
         )
 
