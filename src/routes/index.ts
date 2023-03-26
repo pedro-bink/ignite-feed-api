@@ -2,18 +2,46 @@ import { PrismaClient } from ".prisma/client"
 import { Router } from "express"
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt';
+import multer from 'multer';
+import { UploadedFiles } from "../types/types";
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
 
 const prisma = new PrismaClient()
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, './src/images')
+    },
+
+    filename: (req, file, cb) => {
+        // console.log(file)
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+})
+
+const upload = multer({ 
+    storage: storage, 
+    limits: { fileSize: 1000000 }})
+    .fields(
+    [
+        {
+            name:'avatarFile',
+            maxCount:1
+        },
+        {
+            name: 'bannerFile', 
+            maxCount:1
+        },
+    ]
+);
 
 export const router = Router()
 
 const secret = process.env.JWT_SECRET || 'defaultSecret';
-
-// middleware that is specific to this router
-router.use((req, res, next) => {
-  console.log('Time: ', Date.now())
-  next()
-})
+const supabaseUrl = 'https://zlwhfurpnrfwvbrcastz.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsd2hmdXJwbnJmd3ZicmNhc3R6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY3OTE4NzQ0MiwiZXhwIjoxOTk0NzYzNDQyfQ.By1OGEAMTMPY9pVaP1lK35j1aYuzNNwGh5GExyKK8TU'
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 router.get('/posts', async (req, res) => {
     try {
@@ -127,7 +155,6 @@ router.get('/users', async (req, res) => {
 })
 
 router.get('/users/:id', async (req, res) => {
-
     const { id } = req.params
     const parsedId = parseInt(id);
 
@@ -147,21 +174,52 @@ router.get('/users/:id', async (req, res) => {
 })
 
 
-router.put('/users/:id', async (req, res) => {
-    const { treatedAvatarUrl, treatedBannerUrl, treatedName, treatedRole } = req.body
+router.put('/users/:id', upload, async (req, res) => {
+    const { name, role } = req.body
     const { id } = req.params
     const parsedId = parseInt(id);
 
     try {
+        const files = req.files as UploadedFiles;
+
+        const avatarImageName = files.avatarFile ? files.avatarFile[0].originalname : undefined
+        const bannerImageName = files.bannerFile ? files.bannerFile[0].originalname : undefined
+
+        if (files.avatarFile) {
+            const avatarBuffer = fs.readFileSync(files.avatarFile[0].path)
+            await supabase.storage.from('images').upload(`avatars/${avatarImageName}`, avatarBuffer, {
+                contentType: 'image/jpeg'
+            })
+            fs.unlinkSync(files.avatarFile[0].path)
+        }
+
+        if (files.bannerFile) {
+            const bannerBuffer = fs.readFileSync(files.bannerFile[0].path)
+            await supabase.storage.from('images').upload(`banners/${bannerImageName}`, bannerBuffer, {
+                contentType: 'image/jpeg'
+            })
+            fs.unlinkSync(files.bannerFile[0].path)
+        }
+
+        const { data: avatarUrl } = await supabase
+        .storage
+        .from('images')
+        .getPublicUrl(`avatars/${avatarImageName}`)
+
+        const { data: bannerUrl } = await supabase
+        .storage
+        .from('images')
+        .getPublicUrl(`banners/${bannerImageName}`)
+
         const updatedUser = await prisma.user.update({
             where: {
                 id: parsedId
             },
             data: {
-                avatarUrl: treatedAvatarUrl,
-                bannerUrl: treatedBannerUrl,
-                name: treatedName, 
-                role: treatedRole,
+                avatarUrl: avatarUrl.publicUrl,
+                bannerUrl: bannerUrl.publicUrl,
+                name,
+                role
             },
         })
         res.status(200).json(updatedUser)
