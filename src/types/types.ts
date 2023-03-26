@@ -10,3 +10,10 @@ export interface SupabaseFile extends File {
     readonly webkitRelativePath: string
     readonly type: string
 }
+
+export interface buildData {
+    name: string,
+    role: string,
+    avatarUrl?: string,
+    bannerUrl?: string,
+}

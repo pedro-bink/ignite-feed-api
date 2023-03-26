@@ -3,7 +3,7 @@ import { Router } from "express"
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt';
 import multer from 'multer';
-import { UploadedFiles } from "../types/types";
+import { buildData, UploadedFiles } from "../types/types";
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 
@@ -15,7 +15,6 @@ const storage = multer.diskStorage({
     },
 
     filename: (req, file, cb) => {
-        // console.log(file)
         cb(null, Date.now() + '-' + file.originalname);
     }
 })
@@ -191,7 +190,7 @@ router.put('/users/:id', upload, async (req, res) => {
                 contentType: 'image/jpeg'
             })
             fs.unlinkSync(files.avatarFile[0].path)
-        }
+        }   
 
         if (files.bannerFile) {
             const bannerBuffer = fs.readFileSync(files.bannerFile[0].path)
@@ -211,16 +210,23 @@ router.put('/users/:id', upload, async (req, res) => {
         .from('images')
         .getPublicUrl(`banners/${bannerImageName}`)
 
+        let builtData:buildData = {
+            name,
+            role
+        }
+
+        if (files.avatarFile) {
+            builtData = {...builtData, avatarUrl: avatarUrl.publicUrl}
+        }
+        if (files.bannerFile) {
+            builtData = {...builtData, bannerUrl: bannerUrl.publicUrl}
+        }
+
         const updatedUser = await prisma.user.update({
             where: {
                 id: parsedId
             },
-            data: {
-                avatarUrl: avatarUrl.publicUrl,
-                bannerUrl: bannerUrl.publicUrl,
-                name,
-                role
-            },
+            data: builtData
         })
         res.status(200).json(updatedUser)
     } catch (error) {
