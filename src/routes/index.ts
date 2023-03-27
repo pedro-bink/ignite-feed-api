@@ -6,19 +6,18 @@ import multer from 'multer';
 import { buildData, UploadedFiles } from "../types/types";
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
-import path from 'path';
 
 const prisma = new PrismaClient()
 
 const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-      cb(null, path.join(__dirname, 'src', 'images'));
+    destination: function (req, file, cb) {
+        cb(null, process.env.STATIC_DIR as string)
     },
-    filename: function(req, file, cb) {
-      cb(null, Date.now() + '-' + file.originalname);
-    }
-});
 
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+})
 
 const upload = multer({ 
     storage: storage, 
