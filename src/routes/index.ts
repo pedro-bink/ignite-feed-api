@@ -9,6 +9,12 @@ import fs from 'fs';
 
 const prisma = new PrismaClient()
 
+const imagesDir = process.env.STATIC_DIR as string
+
+if (!fs.existsSync(imagesDir)){
+    fs.mkdirSync(imagesDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, process.env.STATIC_DIR as string)
