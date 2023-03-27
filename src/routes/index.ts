@@ -11,15 +11,13 @@ import path from 'path';
 const prisma = new PrismaClient()
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const absolutePath = path.resolve(__dirname, '../images');
-        cb(null, absolutePath);
+    destination: function(req, file, cb) {
+      cb(null, path.join(__dirname, 'src', 'images'));
     },
-
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
+    filename: function(req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname);
     }
-})
+});
 
 
 const upload = multer({ 
