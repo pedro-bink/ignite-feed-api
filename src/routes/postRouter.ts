@@ -13,6 +13,9 @@ postRouter.get('/posts', requireAuth, async (req, res) => {
                 comments: {
                     include: {
                         author: true
+                        },
+                        orderBy: {
+                            createdAt: 'desc'
                         }
                     }
                 },

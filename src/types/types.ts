@@ -17,3 +17,9 @@ export interface buildData {
     avatarUrl?: string,
     bannerUrl?: string,
 }
+
+export interface buildDataCommentUpdate {
+    content: string,
+    hasLiked?: boolean,
+    hasDisliked?: boolean,
+}

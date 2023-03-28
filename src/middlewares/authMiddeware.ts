@@ -6,8 +6,6 @@ export function requireAuth(req, res, next){
         token = token.split(' ')[1];
     }
 
-    console.log(token)
-
     if(token){
         jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
             if(err) {
